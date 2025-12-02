@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數戰棋：貓咪大戰爭 | Math Cat Battle</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
+
+    <!-- Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Zen Maru Gothic', 'Noto Serif TC', serif;
+            background-color: #e6f2ff; 
+            color: #4a4a4a;
+            overflow-x: hidden;
+        }
+
+        /* Japanese Style Subtle Pattern Background */
+        .bg-japanese-pattern {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -2;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M21.184 20c.357-.13.72-.264 1.088-.402l1.768-.661C33.64 15.347 39.647 14 50 14c10.271 0 15.362 1.222 24.629 4.928.955.383 1.869.74 2.75 1.072h6.225c-2.51-.735-5.197-1.52-8.144-2.52-3.262-1.107-6.256-2.172-9.65-3.342-8.14-2.816-15.36-5.316-26.16-5.316-11.057 0-17.222 2.566-24.623 5.138-3.556 1.235-6.95 2.378-10.48 3.578l-1.557.53c-3.022 1.026-5.91 1.987-8.795 2.932h7.803zm-6.132-5.786c-3.656-1.307-7.208-2.548-11.023-3.85-7.186-2.448-12.99-4.437-20.409-4.437-7.204 0-13.337 2.155-20.96 4.935-3.586 1.309-7.22 2.618-10.725 3.89V8.507c4.468-1.75 9.223-3.507 14.443-5.25C12.774 1.004 21.022 0 29.629 0c8.685 0 16.187.986 22.673 3.158 4.297 1.438 8.39 2.92 12.28 4.39L67.47 8.63c-4.046-1.625-8.607-3.28-13.75-4.872C47.14 1.495 39.423 0 30.943 0c-8.625 0-15.562 1.35-21.532 3.57C4.698 5.325 0 6.814 0 6.814v4.39c2.21-1.04 4.517-1.996 7.143-2.96 6.748-2.485 13.73-4.948 23.704-4.948 9.73 0 15.995 2.42 23.54 5.132 3.37 1.212 6.706 2.406 9.793 3.57h-8.892c-2.165-.763-4.262-1.5-6.57-2.296-7.593-2.617-13.86-4.778-23.358-4.778-9.317 0-15.316 2.14-22.72 4.704-3.84 1.332-7.672 2.672-11.378 3.975.508.176 1.016.35 1.522.523 1.126.387 2.256.773 3.39 1.157l.193.065zm15.307-1.97c6.533-2.178 12.01-3.73 18.16-3.73 6.62 0 11.953 1.95 18.117 4.333l.002.002c2.425.938 4.867 1.886 7.524 2.856h-8.476c-2.07-.745-4.066-1.474-6.27-2.244-7.106-2.488-12.976-4.545-21.862-4.545-9.113 0-15.14 2.105-22.517 4.613-3.964 1.35-7.93 2.702-11.756 4.01L15.242 20h7.902c.32-.116.643-.233.97-.35l.052-.017c.69-.25 1.38-.5 2.08-.75.537-.192 1.075-.384 1.616-.576l.052-.018c3.305-1.177 6.714-2.383 10.48-3.69 7.4-2.572 13.564-5.138 24.622-5.138 10.802 0 18.02 2.5 26.16 5.316 3.393 1.17 6.387 2.235 9.65 3.342l.564.19v-4.102l-1.37-.5c-3.41-1.247-6.758-2.492-9.916-3.71C61.924 7.81 55.932 6.57 46.947 6.57c-9.154 0-15.164 1.183-22.263 3.52l-.002.002c-2.282.75-4.455 1.452-6.798 2.25-7.06 2.403-12.726 4.23-20.337 4.23-7.445 0-12.816-1.648-19.163-3.692C4.816 12.068 0 11.12 0 11.12v3.65c1.568.528 3.542 1.14 5.798 1.816 7.276 2.185 13.103 3.935 20.57 3.935 8.227 0 15.14-2.284 22.518-4.85l.055-.02c.535-.185 1.07-.37 1.61-.555l.056-.02c.686-.236 1.37-.47 2.06-.708l.053-.018c3.835-1.31 7.792-2.65 11.85-3.97 7.228-2.345 13.106-4.372 21.144-4.372 8.226 0 15.138 2.284 22.516 4.848 3.97 1.346 7.89 2.692 11.706 4.014v-3.942l-1.734-.604c-3.615-1.25-7.13-2.455-10.668-3.653-7.527-2.54-13.563-4.575-21.822-4.575-8.02 0-13.385 1.647-19.633 3.627-4.175 1.32-8.85 2.744-14.038 4.422C23.267 15.603 14.98 16.5 6.71 16.5c-5.813 0-10.63-.434-14.66-1.295l.006 4.05c4.32.82 9.687 1.222 15.83 1.222 8.016 0 15.922-.87 23.63-3.364 4.838-1.562 9.162-2.872 13.767-4.158l.256-.072.006-.002c7.858-2.183 14.163-3.844 21.202-3.844 7.856 0 14.16 1.662 22.018 3.844 2.185.605 4.492 1.236 6.86 1.934v-3.78c-3.056-1.02-6.256-2.09-9.67-3.223C78.626 5.828 71.85 3.87 63.83 3.87c-7.88 0-13.942 1.87-21.097 4.142-2.295.728-4.627 1.46-7.046 2.228l-.212.065c-8.505 2.666-15.196 4.695-23.756 4.695-7.857 0-14.162-1.662-22.02-3.844l-.5-.14v3.795c3.612 1.245 7.127 2.45 10.666 3.648C17.405 21 23.443 23.036 31.703 23.036c7.877 0 13.938-1.87 21.092-4.14 2.294-.728 4.626-1.46 7.045-2.226l.213-.067c8.506-2.665 15.197-4.695 23.756-4.695 7.86 0 14.163 1.662 22.02 3.844 4.455 1.236 8.848 2.51 13.175 3.845v-3.625c-5.19-1.554-10.475-3.07-15.92-4.83-7.704-2.49-13.99-4.473-22.018-4.473-8.03 0-14.317 1.983-22.02 4.475-4.366 1.41-8.618 2.652-12.84 3.862V20z' fill='%23c4e0f5' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
+            background-size: 100px 20px;
+            opacity: 0.6;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #9ca3af;
+            border-radius: 4px;
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .animate-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in-pop {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .wood-texture {
+            background: #e6c698;
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+        .wood-texture::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.05) 2px, rgba(255,255,255,0.1) 4px);
+            pointer-events: none;
+            border-radius: 0.5rem;
+        }
+        
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+        }
+
+        .digital-font {
+            font-family: 'Chakra Petch', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-japanese-pattern"></div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Constants
+        const COLS = 10;
+        const ROWS = 10;
+        const INITIAL_TIME = 300; // 5 minutes in seconds
+        const MAX_FOULS = 5;
+        const PIECE_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+        // --- SVG Icons Components ---
+        const PawIcon = ({ className }) => (
+            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+                <path d="M12 2a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m5 4.5a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5 2.5 2.5 0 0 1-2.5-2.5M7 6.5a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5 2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 7 6.5M12 10a5 5 0 0 1 5 5v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2a5 5 0 0 1 5-5z"/>
+            </svg>
+        );
+
+        const BookIcon = ({ className }) => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+        );
+
+        const TrophyIcon = ({ className }) => (
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+                <path fillRule="evenodd" d="M5.166 2.621v.858c-1.035.148-2.059.33-3.071.543a.75.75 0 00-.584.859 6.753 6.753 0 006.138 5.6 6.73 6.73 0 002.743 1.346A6.707 6.707 0 019.279 15H8.54c-1.036 0-1.875.84-1.875 1.875V19.5h-.75a2.25 2.25 0 00-2.25 2.25c0 .414.336.75.75.75h15a.75.75 0 00.75-.75 2.25 2.25 0 00-2.25-2.25h-.75v-2.625c0-1.036-.84-1.875-1.875-1.875h-.739a6.706 6.706 0 01-1.112-3.173 6.73 6.73 0 002.743-1.347 6.753 6.753 0 006.139-5.6.75.75 0 00-.585-.858 47.76 47.76 0 00-3.07-.543V2.62a.75.75 0 00-.658-.744 49.22 49.22 0 00-6.093-.377c-2.063 0-4.096.128-6.093.377a.75.75 0 00-.657.744zm0 2.329a5.231 5.231 0 011.042.64 6.739 6.739 0 00-.691.512c-.375.309-.714.653-1.013 1.026a5.254 5.254 0 01.662-2.178zm10.892.64a5.23 5.23 0 011.042-.64 5.254 5.254 0 01.662 2.178c-.299-.373-.638-.717-1.013-1.026a6.739 6.739 0 00-.691-.512z" clipRule="evenodd" />
+            </svg>
+        );
+
+        const ClockIcon = ({ className }) => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+            </svg>
+        );
+
+        const AlertIcon = ({ className }) => (
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+        );
+
+        const SwapIcon = ({ className }) => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="r
