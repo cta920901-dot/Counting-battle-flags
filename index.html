@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>數戰棋：貓咪大戰爭 | Math Cat Battle</title>
     
     <!-- React & ReactDOM -->
@@ -16,7 +16,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Zen+Maru+Gothic:wght@500;700;900&family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet">
 
     <!-- Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -25,11 +25,11 @@
         body {
             font-family: 'Zen Maru Gothic', 'Noto Serif TC', serif;
             background-color: #e6f2ff; 
-            color: #4a4a4a;
-            overflow-x: hidden;
+            color: #2d3748;
+            overflow: hidden; /* Prevent scrolling */
+            touch-action: none;
         }
 
-        /* Japanese Style Subtle Pattern Background */
         .bg-japanese-pattern {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -39,7 +39,6 @@
             opacity: 0.6;
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -49,6 +48,33 @@
         ::-webkit-scrollbar-thumb {
             background: #9ca3af;
             border-radius: 4px;
+        }
+
+        .wood-texture {
+            background: #e6c698;
+            position: relative;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+        }
+        .wood-texture::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.05) 2px, rgba(255,255,255,0.1) 4px);
+            pointer-events: none;
+            border-radius: 0.75rem;
+        }
+        
+        .modal-backdrop {
+            backdrop-filter: blur(8px);
+        }
+
+        .digital-font {
+            font-family: 'Chakra Petch', monospace;
+        }
+
+        /* Number text shadow for better visibility */
+        .text-shadow-white {
+            text-shadow: 2px 2px 0px rgba(255, 255, 255, 0.8), -1px -1px 0 rgba(255,255,255,0.8);
         }
 
         /* Animations */
@@ -62,39 +88,17 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
+            from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
         }
         .animate-fade-in-pop {
             animation: fadeIn 0.3s ease-out forwards;
         }
-
-        .wood-texture {
-            background: #e6c698;
-            position: relative;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
-        }
-        .wood-texture::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.05) 2px, rgba(255,255,255,0.1) 4px);
-            pointer-events: none;
-            border-radius: 0.5rem;
-        }
-        
-        .modal-backdrop {
-            backdrop-filter: blur(4px);
-        }
-
-        .digital-font {
-            font-family: 'Chakra Petch', monospace;
-        }
     </style>
 </head>
-<body>
-    <div class="bg-japanese-pattern"></div>
-    <div id="root"></div>
+<body class="h-screen w-screen flex flex-col overflow-hidden">
+    <div class="bg-japanese-pattern w-full h-full absolute inset-0"></div>
+    <div id="root" class="w-full h-full flex flex-col"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
@@ -102,111 +106,202 @@
         // Constants
         const COLS = 10;
         const ROWS = 10;
-        const INITIAL_TIME = 300; // 5 minutes in seconds
+        const TOTAL_GAME_TIME = 600; 
+        const TURN_TIME_LIMIT = 10; 
         const MAX_FOULS = 5;
         const PIECE_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-        // --- SVG Icons Components ---
-        const PawIcon = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-                <path d="M12 2a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m5 4.5a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5 2.5 2.5 0 0 1-2.5-2.5M7 6.5a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5 2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 7 6.5M12 10a5 5 0 0 1 5 5v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2a5 5 0 0 1 5-5z"/>
-            </svg>
-        );
+        // --- Audio Context ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const playSound = (type) => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
 
-        const BookIcon = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
-        );
+            if (type === 'move') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'capture') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'error') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.3);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        };
 
-        const TrophyIcon = ({ className }) => (
-             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-                <path fillRule="evenodd" d="M5.166 2.621v.858c-1.035.148-2.059.33-3.071.543a.75.75 0 00-.584.859 6.753 6.753 0 006.138 5.6 6.73 6.73 0 002.743 1.346A6.707 6.707 0 019.279 15H8.54c-1.036 0-1.875.84-1.875 1.875V19.5h-.75a2.25 2.25 0 00-2.25 2.25c0 .414.336.75.75.75h15a.75.75 0 00.75-.75 2.25 2.25 0 00-2.25-2.25h-.75v-2.625c0-1.036-.84-1.875-1.875-1.875h-.739a6.706 6.706 0 01-1.112-3.173 6.73 6.73 0 002.743-1.347 6.753 6.753 0 006.139-5.6.75.75 0 00-.585-.858 47.76 47.76 0 00-3.07-.543V2.62a.75.75 0 00-.658-.744 49.22 49.22 0 00-6.093-.377c-2.063 0-4.096.128-6.093.377a.75.75 0 00-.657.744zm0 2.329a5.231 5.231 0 011.042.64 6.739 6.739 0 00-.691.512c-.375.309-.714.653-1.013 1.026a5.254 5.254 0 01.662-2.178zm10.892.64a5.23 5.23 0 011.042-.64 5.254 5.254 0 01.662 2.178c-.299-.373-.638-.717-1.013-1.026a6.739 6.739 0 00-.691-.512z" clipRule="evenodd" />
-            </svg>
-        );
+        // --- Icons ---
+        const PawIcon = ({ className }) => (<svg viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M12 2a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m5 4.5a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5 2.5 2.5 0 0 1-2.5-2.5M7 6.5a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5 2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 7 6.5M12 10a5 5 0 0 1 5 5v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2a5 5 0 0 1 5-5z"/></svg>);
+        const BookIcon = ({ className }) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>);
+        const TrophyIcon = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path fillRule="evenodd" d="M5.166 2.621v.858c-1.035.148-2.059.33-3.071.543a.75.75 0 00-.584.859 6.753 6.753 0 006.138 5.6 6.73 6.73 0 002.743 1.346A6.707 6.707 0 019.279 15H8.54c-1.036 0-1.875.84-1.875 1.875V19.5h-.75a2.25 2.25 0 00-2.25 2.25c0 .414.336.75.75.75h15a.75.75 0 00.75-.75 2.25 2.25 0 00-2.25-2.25h-.75v-2.625c0-1.036-.84-1.875-1.875-1.875h-.739a6.706 6.706 0 01-1.112-3.173 6.73 6.73 0 002.743-1.347 6.753 6.753 0 006.139-5.6.75.75 0 00-.585-.858 47.76 47.76 0 00-3.07-.543V2.62a.75.75 0 00-.658-.744 49.22 49.22 0 00-6.093-.377c-2.063 0-4.096.128-6.093.377a.75.75 0 00-.657.744zm0 2.329a5.231 5.231 0 011.042.64 6.739 6.739 0 00-.691.512c-.375.309-.714.653-1.013 1.026a5.254 5.254 0 01.662-2.178zm10.892.64a5.23 5.23 0 011.042-.64 5.254 5.254 0 01.662 2.178c-.299-.373-.638-.717-1.013-1.026a6.739 6.739 0 00-.691-.512z" clipRule="evenodd" /></svg>);
+        const ClockIcon = ({ className }) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>);
+        const AlertIcon = ({ className }) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>);
+        const SwapIcon = ({ className }) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l5 5M4 4l5 5"/></svg>);
+        const PauseIcon = ({ className }) => (<svg viewBox="0 0 24 24" fill="currentColor" className={className}><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>);
+        const PlayIcon = ({ className }) => (<svg viewBox="0 0 24 24" fill="currentColor" className={className}><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>);
 
-        const ClockIcon = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-            </svg>
-        );
-
-        const AlertIcon = ({ className }) => (
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="15" y1="9" x2="9" y2="15"></line>
-                <line x1="9" y1="9" x2="15" y2="15"></line>
-            </svg>
-        );
-
-        const SwapIcon = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l5 5M4 4l5 5"/>
-            </svg>
-        );
-
-        const PauseIcon = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-                <rect x="6" y="4" width="4" height="16"></rect>
-                <rect x="14" y="4" width="4" height="16"></rect>
-            </svg>
-        );
-
-        const PlayIcon = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-        );
-
-        // --- Custom Cat Piece SVG Shape ---
         const CatPieceSVG = ({ colorClass, strokeClass }) => (
             <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-                <path 
-                    d="M 20 35 
-                       Q 15 5 40 20 
-                       Q 50 15 60 20 
-                       Q 85 5 80 35 
-                       A 45 42 0 1 1 20 35 Z" 
-                    className={colorClass} 
-                    stroke={strokeClass ? "currentColor" : "none"}
-                    strokeWidth="3"
-                />
+                <path d="M 20 35 Q 15 5 40 20 Q 50 15 60 20 Q 85 5 80 35 A 45 42 0 1 1 20 35 Z" className={colorClass} stroke={strokeClass ? "currentColor" : "none"} strokeWidth="3" />
             </svg>
         );
 
-        // --- Name Input Modal (Outside) ---
+        // --- Rules Modal ---
+        const RulesModal = ({ onClose, isInitial }) => (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 modal-backdrop p-4" onClick={isInitial ? undefined : onClose}>
+                <div className="bg-white rounded-3xl w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
+                    <div className="bg-gradient-to-r from-[#708899] to-[#5a6e7d] p-6 flex items-center justify-between text-white shrink-0">
+                        <h2 className="text-3xl font-black flex items-center gap-3 tracking-widest">
+                            <BookIcon className="w-9 h-9"/> 
+                            <span className="drop-shadow-md">數戰棋：戰略指南</span>
+                        </h2>
+                        {!isInitial && <button onClick={onClose} className="hover:bg-white/20 p-2 rounded-full text-2xl leading-none transition-colors">&times;</button>}
+                    </div>
+                    
+                    <div className="p-8 overflow-y-auto space-y-8 bg-[#eef2f5] text-[#4a5d6b] text-lg leading-relaxed flex-1">
+                        {/* Goal Section */}
+                        <section className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#708899] hover:shadow-md transition-shadow">
+                            <h3 className="text-2xl font-bold text-[#5f7d95] mb-4 flex items-center gap-3">
+                                <span className="bg-[#dae3ea] text-[#5f7d95] w-10 h-10 flex items-center justify-center rounded-full text-xl shadow-inner font-black">1</span> 
+                                勝利條件
+                            </h3>
+                            <div className="pl-4 ml-2">
+                                <p className="font-medium text-xl text-stone-700">
+                                    進行<span className="text-[#5f7d95] font-bold mx-1">兩回合</span>攻守交換賽。
+                                    <br/>吃掉對手棋子、或迫使對手犯規出局，即獲得該回合勝利！
+                                </p>
+                            </div>
+                        </section>
+
+                        {/* Rules Grid */}
+                        <div className="grid md:grid-cols-2 gap-6">
+                            {/* Time Rules */}
+                            <section className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#8da399] hover:shadow-md transition-shadow flex flex-col h-full">
+                                <h3 className="text-2xl font-bold text-[#6b827d] mb-4 flex items-center gap-3">
+                                    <span className="bg-[#e0e8e5] text-[#6b827d] w-10 h-10 flex items-center justify-center rounded-full text-xl shadow-inner font-black">2</span> 
+                                    時間限制
+                                </h3>
+                                <div className="space-y-4 flex-1">
+                                    <div className="flex items-start gap-3 bg-[#f0f4f2] p-3 rounded-lg border border-[#8da399]/30">
+                                        <div className="text-3xl">⏰</div>
+                                        <div>
+                                            <b className="text-[#556b66] block text-lg">整場比賽 10 分鐘</b>
+                                            <span className="text-stone-600 text-base">時間到時立即結算，吃子多者獲勝。</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 bg-red-50/50 p-3 rounded-lg border border-red-100">
+                                        <div className="text-3xl">⚡</div>
+                                        <div>
+                                            <b className="text-red-800 block text-lg">進攻限時 10 秒</b>
+                                            <span className="text-stone-600 text-base">思考太久會被記一次犯規並強制換手！</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Foul Rules */}
+                            <section className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#d48888] hover:shadow-md transition-shadow flex flex-col h-full">
+                                <h3 className="text-2xl font-bold text-[#b56565] mb-4 flex items-center gap-3">
+                                    <span className="bg-[#fcebeb] text-[#b56565] w-10 h-10 flex items-center justify-center rounded-full text-xl shadow-inner font-black">3</span> 
+                                    犯規規則
+                                </h3>
+                                <ul className="space-y-4 pl-2 flex-1">
+                                    <li className="flex items-center gap-3">
+                                        <span className="text-2xl">🚫</span>
+                                        <span><b>計算錯誤：</b>點擊不能整除的格子。</span>
+                                    </li>
+                                    <li className="flex items-center gap-3">
+                                        <span className="text-2xl">🐌</span>
+                                        <span><b>思考超時：</b>超過 10 秒未行動。</span>
+                                    </li>
+                                    <li className="flex items-center gap-3 bg-red-100 p-2 rounded-lg border border-red-200">
+                                        <span className="text-2xl">💀</span>
+                                        <span className="font-bold text-red-900">單局滿 5 次犯規直接判輸！</span>
+                                    </li>
+                                </ul>
+                            </section>
+                        </div>
+
+                        {/* Movement */}
+                        <section className="bg-[#dae3ea] p-6 rounded-2xl border-2 border-[#cfd8dc] shadow-sm">
+                            <h3 className="text-xl font-bold text-[#5f7d95] mb-4 flex items-center gap-2">
+                                <PawIcon className="w-7 h-7"/> 移動與戰鬥
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center text-base font-bold text-[#4a5d6b]">
+                                <div className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center gap-1">
+                                    <span className="text-[#9caebf] text-xs uppercase tracking-widest">方向</span>
+                                    <span>只能直走 (不可橫移)</span>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center gap-1">
+                                    <span className="text-[#9caebf] text-xs uppercase tracking-widest">條件</span>
+                                    <span>目標必須能整除</span>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center gap-1">
+                                    <span className="text-[#9caebf] text-xs uppercase tracking-widest">升級</span>
+                                    <span>抵達底線變身無敵</span>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    
+                    <div className="bg-white p-6 border-t border-stone-200 flex justify-end shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                        <button onClick={onClose} className="bg-gradient-to-r from-[#708899] to-[#5f7d95] hover:from-[#5f7d95] hover:to-[#4a5d6b] text-white px-12 py-4 rounded-2xl font-black text-2xl shadow-xl hover:shadow-2xl transform transition-all hover:-translate-y-1 active:scale-95 w-full md:w-auto tracking-widest flex items-center justify-center gap-3">
+                            <span>{isInitial ? "我準備好了！" : "回到戰場"}</span> 🚀
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- Name Input Modal ---
         const NameInputModal = ({ whiteName, setWhiteName, blackName, setBlackName, onConfirm }) => (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-blue-100/90 backdrop-blur-sm p-4 animate-fade-in-pop">
-                <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-blue-200 relative overflow-hidden">
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-yellow-100 rounded-full"></div>
-                    <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-blue-100 rounded-full"></div>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#708899]/80 backdrop-blur-sm p-4 animate-fade-in-pop">
+                <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-[#708899] relative overflow-hidden">
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#e6f2ff] rounded-full"></div>
+                    <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-[#dae3ea] rounded-full"></div>
                     
                     <div className="relative z-10 text-center">
                         <div className="text-6xl mb-4">🐱 VS 😼</div>
-                        <h2 className="text-3xl font-bold text-stone-800 mb-2 font-serif">選手登錄</h2>
-                        <p className="text-stone-500 mb-8">兩回合攻守交換制，總勝場多者勝！</p>
+                        <h2 className="text-3xl font-bold text-[#5a6e7d] mb-2 font-serif">選手登錄</h2>
+                        <p className="text-stone-500 mb-8 font-bold">準備好接受數學挑戰了嗎？</p>
                         
                         <div className="space-y-6">
                             <div className="text-left">
-                                <label className="block text-sm font-bold text-stone-600 mb-2 ml-1">⚪ 白貓選手 (先手)</label>
+                                <label className="block text-sm font-bold text-[#5a6e7d] mb-2 ml-1">⚪ 白貓選手 (先手)</label>
                                 <input 
                                     type="text" 
                                     value={whiteName}
                                     onChange={(e) => setWhiteName(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-lg font-bold text-stone-700 bg-stone-50"
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-[#cfd8dc] focus:border-[#708899] focus:ring-2 focus:ring-[#708899]/30 outline-none transition-all text-lg font-bold text-stone-700 bg-stone-50"
                                     placeholder="請輸入名字..."
                                 />
                             </div>
                             
                             <div className="text-left">
-                                <label className="block text-sm font-bold text-stone-600 mb-2 ml-1">⚫ 黑貓選手 (後手)</label>
+                                <label className="block text-sm font-bold text-[#5a6e7d] mb-2 ml-1">⚫ 黑貓選手 (後手)</label>
                                 <input 
                                     type="text" 
                                     value={blackName}
                                     onChange={(e) => setBlackName(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-stone-500 focus:ring-2 focus:ring-stone-200 outline-none transition-all text-lg font-bold text-stone-700 bg-stone-50"
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-[#cfd8dc] focus:border-[#5a6e7d] focus:ring-2 focus:ring-[#5a6e7d]/30 outline-none transition-all text-lg font-bold text-stone-700 bg-stone-50"
                                     placeholder="請輸入名字..."
                                 />
                             </div>
@@ -217,7 +312,7 @@
                                         onConfirm();
                                     }
                                 }}
-                                className="w-full py-4 bg-gradient-to-r from-blue-400 to-indigo-400 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold shadow-lg transform transition-transform active:scale-95 text-xl mt-4"
+                                className="w-full py-4 bg-gradient-to-r from-[#708899] to-[#5f7d95] hover:from-[#5f7d95] hover:to-[#4a5d6b] text-white rounded-xl font-bold shadow-lg transform transition-transform active:scale-95 text-xl mt-4"
                             >
                                 開始對戰！ 🚀
                             </button>
@@ -227,64 +322,13 @@
             </div>
         );
 
-        // --- Rules Modal ---
-        const RulesModal = ({ onClose }) => (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 modal-backdrop p-4" onClick={onClose}>
-                <div className="bg-white rounded-2xl w-full max-w-2xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
-                    <div className="bg-blue-400 p-4 flex items-center justify-between text-white">
-                        <h2 className="text-2xl font-bold flex items-center gap-2">
-                            <BookIcon className="w-6 h-6"/> 遊戲規則手冊
-                        </h2>
-                        <button onClick={onClose} className="hover:bg-blue-500 p-1 rounded-full text-2xl leading-none">&times;</button>
-                    </div>
-                    <div className="p-6 overflow-y-auto space-y-6 text-stone-700">
-                        <section>
-                            <h3 className="text-lg font-bold text-blue-600 mb-2 border-b-2 border-blue-200 pb-1 flex items-center gap-2"><span className="bg-blue-100 p-1 rounded">1</span> 攻守交換制 (BO2)</h3>
-                            <p className="leading-relaxed bg-blue-50 p-3 rounded-lg border border-blue-200">
-                                為了公平起見，遊戲分為<b>兩回合</b>。<br/>
-                                第 1 回合結束後，雙方<b>交換顏色</b>（先手變後手）再戰一局。<br/>
-                                最終依據兩回合的總勝場數決定冠軍！
-                            </p>
-                        </section>
-                        <section>
-                            <h3 className="text-lg font-bold text-blue-600 mb-2 border-b-2 border-blue-200 pb-1 flex items-center gap-2"><span className="bg-blue-100 p-1 rounded">2</span> 時間與結算</h3>
-                             <ul className="list-disc pl-5 space-y-2">
-                                <li className="bg-yellow-50 p-2 rounded border border-yellow-200"><b>限時 5 分鐘：</b>時間歸零時該回合立即結束。</li>
-                                <li className="bg-stone-50 p-2 rounded border border-stone-200">
-                                    <b>超時結算：</b>如果時間到，比較<b>「吃掉的棋子數量」</b>多者獲勝。
-                                    <span className="text-xs text-stone-500 block">若數量相同，比較誰吃掉的棋子包含更小的數字。</span>
-                                </li>
-                                <li className="bg-red-50 p-2 rounded border border-red-200"><b>犯規上限：</b>犯規 5 次直接該局判輸。</li>
-                            </ul>
-                        </section>
-                        <section>
-                            <h3 className="text-lg font-bold text-blue-600 mb-2 border-b-2 border-blue-200 pb-1 flex items-center gap-2"><span className="bg-blue-100 p-1 rounded">3</span> 移動規則</h3>
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li><b>方向：</b>白貓 1→100，黑貓 100→1。</li>
-                                <li><b>整除：</b>格子數字必須能被棋子數字整除。</li>
-                                <li><b>升級：</b>抵達底線變身！可後退且無視整除。</li>
-                            </ul>
-                        </section>
-                    </div>
-                    <div className="bg-gray-50 p-4 border-t flex justify-end">
-                        <button onClick={onClose} className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full font-bold transition-colors shadow-lg">我懂了，開始戰鬥！ 😼</button>
-                    </div>
-                </div>
-            </div>
-        );
-
         // --- Logic ---
         const generateInitialState = () => {
             const whiteStart = [1,2,3,4,5,6,7,8,9,10].sort(() => Math.random() - 0.5);
             const blackStart = [1,2,3,4,5,6,7,8,9,10].sort(() => Math.random() - 0.5);
-            
             const pieces = [];
-            whiteStart.forEach((val, idx) => {
-                pieces.push({ id: `w-${val}`, player: 'white', value: val, position: idx, isUpgraded: false });
-            });
-            blackStart.forEach((val, idx) => {
-                pieces.push({ id: `b-${val}`, player: 'black', value: val, position: 90 + idx, isUpgraded: false });
-            });
+            whiteStart.forEach((val, idx) => { pieces.push({ id: `w-${val}`, player: 'white', value: val, position: idx, isUpgraded: false }); });
+            blackStart.forEach((val, idx) => { pieces.push({ id: `b-${val}`, player: 'black', value: val, position: 90 + idx, isUpgraded: false }); });
             return pieces;
         };
 
@@ -295,74 +339,69 @@
         };
 
         const App = () => {
-            // Game State
+            const [showInitialRules, setShowInitialRules] = useState(true);
+            const [isNameSet, setIsNameSet] = useState(false);
             const [pieces, setPieces] = useState([]);
             const [turn, setTurn] = useState('white');
             const [selectedPieceId, setSelectedPieceId] = useState(null);
             const [isPaused, setIsPaused] = useState(false);
-            
-            // Round & Match State
             const [round, setRound] = useState(1);
             const [roundWinner, setRoundWinner] = useState(null);
             const [matchOver, setMatchOver] = useState(false);
-            
             const [winReason, setWinReason] = useState("");
             const [history, setHistory] = useState([]);
             const [errorMsg, setErrorMsg] = useState(null);
             const [showRules, setShowRules] = useState(false);
-            
-            // Persistent Player Names
             const [p1Name, setP1Name] = useState(""); 
             const [p2Name, setP2Name] = useState("");
-            const [isNameSet, setIsNameSet] = useState(false);
-
-            // Win Stats
             const [playerWins, setPlayerWins] = useState({ p1: 0, p2: 0 });
-
-            // Time & Fouls
-            const [times, setTimes] = useState({ white: INITIAL_TIME, black: INITIAL_TIME });
             const [fouls, setFouls] = useState({ white: 0, black: 0 });
+            const [globalTime, setGlobalTime] = useState(TOTAL_GAME_TIME);
+            const [turnTime, setTurnTime] = useState(TURN_TIME_LIMIT);
 
             const errorTimeoutRef = useRef(null);
             const timerRef = useRef(null);
+            const turnTimerRef = useRef(null);
             const piecesRef = useRef(pieces);
 
-            useEffect(() => {
-                piecesRef.current = pieces;
-            }, [pieces]);
+            useEffect(() => { piecesRef.current = pieces; }, [pieces]);
 
-            // Initial Start
             useEffect(() => {
-                if (isNameSet) {
-                    startRound();
-                }
+                if (isNameSet && !showInitialRules) { startRound(); }
                 return () => {
                     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
                     if (timerRef.current) clearInterval(timerRef.current);
+                    if (turnTimerRef.current) clearInterval(turnTimerRef.current);
                 };
-            }, [isNameSet]);
+            }, [isNameSet, showInitialRules]);
 
-            // Timer Logic
             useEffect(() => {
-                if (!isNameSet || roundWinner || matchOver || errorMsg || showRules || isPaused) {
+                if (!isNameSet || showInitialRules || roundWinner || matchOver || errorMsg || showRules || isPaused) {
                     if (timerRef.current) clearInterval(timerRef.current);
                     return;
                 }
-
                 timerRef.current = setInterval(() => {
-                    setTimes(prevTimes => {
-                        const newTime = prevTimes[turn] - 1;
-                        if (newTime <= 0) {
-                            clearInterval(timerRef.current);
-                            handleTimeOut();
-                            return { ...prevTimes, [turn]: 0 };
-                        }
-                        return { ...prevTimes, [turn]: newTime };
+                    setGlobalTime(prev => {
+                        if (prev <= 1) { clearInterval(timerRef.current); handleGlobalTimeOut(); return 0; }
+                        return prev - 1;
                     });
                 }, 1000);
-
                 return () => clearInterval(timerRef.current);
-            }, [turn, isNameSet, roundWinner, matchOver, errorMsg, showRules, isPaused]);
+            }, [isNameSet, showInitialRules, roundWinner, matchOver, errorMsg, showRules, isPaused]);
+
+            useEffect(() => {
+                if (!isNameSet || showInitialRules || roundWinner || matchOver || errorMsg || showRules || isPaused) {
+                    if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+                    return;
+                }
+                turnTimerRef.current = setInterval(() => {
+                    setTurnTime(prev => {
+                        if (prev <= 1) { clearInterval(turnTimerRef.current); handleTurnTimeout(); return 0; }
+                        return prev - 1;
+                    });
+                }, 1000);
+                return () => clearInterval(turnTimerRef.current);
+            }, [turn, isNameSet, showInitialRules, roundWinner, matchOver, errorMsg, showRules, isPaused]);
 
             const startRound = () => {
                 setPieces(generateInitialState());
@@ -372,52 +411,40 @@
                 setWinReason("");
                 setHistory([]);
                 setErrorMsg(null);
-                setTimes({ white: INITIAL_TIME, black: INITIAL_TIME });
+                setGlobalTime(TOTAL_GAME_TIME);
+                setTurnTime(TURN_TIME_LIMIT);
                 setFouls({ white: 0, black: 0 });
                 setIsPaused(false);
             };
 
-            const handleNameConfirm = () => {
-                setIsNameSet(true);
-            };
-
-            const togglePause = () => {
-                setIsPaused(!isPaused);
-            };
-
+            const handleNameConfirm = () => { setIsNameSet(true); };
+            const togglePause = () => { setIsPaused(!isPaused); };
             const getCurrentWhiteName = () => round === 1 ? p1Name : p2Name;
             const getCurrentBlackName = () => round === 1 ? p2Name : p1Name;
 
-            const handleTimeOut = () => {
+            const handleGlobalTimeOut = () => {
                 const currentPieces = piecesRef.current;
                 const whitePiecesLeft = currentPieces.filter(p => p.player === 'white');
                 const blackPiecesLeft = currentPieces.filter(p => p.player === 'black');
-                const whiteCapturedCount = 10 - whitePiecesLeft.length; 
-                const blackCapturedCount = 10 - blackPiecesLeft.length; 
+                const whiteScore = 10 - whitePiecesLeft.length; 
+                const blackScore = 10 - blackPiecesLeft.length; 
 
-                const whiteScore = blackCapturedCount;
-                const blackScore = whiteCapturedCount;
+                if (whiteScore > blackScore) triggerWin('white', `⏰ 時間到！白貓吃掉 ${whiteScore} 子，黑貓吃掉 ${blackScore} 子。`);
+                else if (blackScore > whiteScore) triggerWin('black', `⏰ 時間到！黑貓吃掉 ${blackScore} 子，白貓吃掉 ${whiteScore} 子。`);
+                else triggerWin('draw', "⏰ 時間到！雙方戰績完全相同，平局！"); 
+            };
 
-                if (whiteScore > blackScore) {
-                    triggerWin('white', `⏳ 時間到！白貓吃掉 ${whiteScore} 子，黑貓吃掉 ${blackScore} 子。`);
-                } else if (blackScore > whiteScore) {
-                    triggerWin('black', `⏳ 時間到！黑貓吃掉 ${blackScore} 子，白貓吃掉 ${whiteScore} 子。`);
-                } else {
-                    const whiteValuesLeft = whitePiecesLeft.map(p => p.value);
-                    const blackValuesLeft = blackPiecesLeft.map(p => p.value);
-                    const whiteCapturedValues = PIECE_VALUES.filter(v => !whiteValuesLeft.includes(v)); 
-                    const blackCapturedValues = PIECE_VALUES.filter(v => !blackValuesLeft.includes(v)); 
-                    const minWhiteAte = blackCapturedValues.length > 0 ? Math.min(...blackCapturedValues) : 999;
-                    const minBlackAte = whiteCapturedValues.length > 0 ? Math.min(...whiteCapturedValues) : 999;
-
-                    if (minWhiteAte < minBlackAte) {
-                        triggerWin('white', `⏳ 平手！但在吃掉的棋子中，白貓吃了較小的數字 (${minWhiteAte})。`);
-                    } else if (minBlackAte < minWhiteAte) {
-                        triggerWin('black', `⏳ 平手！但在吃掉的棋子中，黑貓吃了較小的數字 (${minBlackAte})。`);
-                    } else {
-                         triggerWin('draw', "⏳ 時間到！雙方戰績完全相同，平局！");
-                    }
-                }
+            const handleTurnTimeout = () => {
+                const currentPlayerName = turn === 'white' ? getCurrentWhiteName() : getCurrentBlackName();
+                playSound('error');
+                const newFouls = fouls[turn] + 1;
+                setFouls(prev => ({ ...prev, [turn]: newFouls }));
+                if (newFouls >= MAX_FOULS) { triggerWin(turn === 'white' ? 'black' : 'white', "❌ 對手犯規滿 5 次！"); return; }
+                setErrorMsg({ title: "⚡ 思考太久啦！", detail: `${currentPlayerName} 超時未行動 (犯規 ${newFouls}/${MAX_FOULS})` });
+                if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+                errorTimeoutRef.current = setTimeout(() => {
+                    setErrorMsg(null); setSelectedPieceId(null); setTurn(prev => prev === 'white' ? 'black' : 'white'); setTurnTime(TURN_TIME_LIMIT); 
+                }, 2000);
             };
 
             const getValidMoves = (piece, allPieces) => {
@@ -426,25 +453,12 @@
                 const currentPos = piece.position;
                 const currentRow = Math.floor(currentPos / 10);
                 let targetRow;
-
-                if (!piece.isUpgraded) {
-                    if (piece.player === 'white') targetRow = currentRow + 1;
-                    else targetRow = currentRow - 1;
-                } else {
-                    if (piece.player === 'white') targetRow = currentRow - 1;
-                    else targetRow = currentRow + 1;
-                }
-
+                if (!piece.isUpgraded) targetRow = piece.player === 'white' ? currentRow + 1 : currentRow - 1;
+                else targetRow = piece.player === 'white' ? currentRow - 1 : currentRow + 1;
                 if (targetRow < 0 || targetRow >= ROWS) return [];
                 const startIdx = targetRow * 10;
-                const endIdx = startIdx + 9;
-
-                for (let i = startIdx; i <= endIdx; i++) {
-                    const targetVal = i + 1; 
-                    let isMathValid = false;
-                    if (piece.isUpgraded) isMathValid = true;
-                    else if (targetVal % piece.value === 0) isMathValid = true;
-
+                for (let i = startIdx; i < startIdx + 10; i++) {
+                    let isMathValid = piece.isUpgraded ? true : (i + 1) % piece.value === 0;
                     if (isMathValid) {
                         const occupant = allPieces.find(p => p.position === i);
                         if (!occupant) moves.push({ type: 'move', to: i });
@@ -455,12 +469,11 @@
             };
 
             const handleSquareClick = (idx) => {
-                if (roundWinner || matchOver || errorMsg || showRules || !isNameSet || isPaused) return; 
+                if (roundWinner || matchOver || errorMsg || showRules || !isNameSet || isPaused || showInitialRules) return; 
                 const clickedPiece = pieces.find(p => p.position === idx);
-                const isCurrentPlayerPiece = clickedPiece && clickedPiece.player === turn;
-
-                if (isCurrentPlayerPiece) {
-                    setSelectedPieceId(clickedPiece.id);
+                if (clickedPiece && clickedPiece.player === turn) {
+                    setSelectedPieceId(selectedPieceId === clickedPiece.id ? null : clickedPiece.id);
+                    playSound('move');
                     return;
                 }
                 if (selectedPieceId) {
@@ -473,65 +486,32 @@
             };
 
             const handleInvalidMove = (piece, targetIdx) => {
-                const targetRow = Math.floor(targetIdx / 10);
-                const currentRow = Math.floor(piece.position / 10);
-                const targetVal = targetIdx + 1;
-                let reason = "無法移動至該處";
-                const currentPlayerName = piece.player === 'white' ? getCurrentWhiteName() : getCurrentBlackName();
-                
-                if (!piece.isUpgraded) {
-                    const expectedRow = piece.player === 'white' ? currentRow + 1 : currentRow - 1;
-                    if (Math.abs(targetRow - currentRow) > 1 || targetRow !== expectedRow) reason = "貓咪只能往前跳一排！";
-                    else if (targetVal % piece.value !== 0) reason = `喵？ ${targetVal} 除以 ${piece.value} 無法整除喔！`;
-                }
-
+                playSound('error');
                 const newFouls = fouls[turn] + 1;
                 setFouls(prev => ({ ...prev, [turn]: newFouls }));
-
-                if (newFouls >= MAX_FOULS) {
-                    triggerWin(turn === 'white' ? 'black' : 'white', "❌ 對手犯規滿 5 次！");
-                    return;
-                }
-
-                setErrorMsg({
-                    title: "踩到陷阱啦！",
-                    detail: `${reason} (犯規 ${newFouls}/${MAX_FOULS})`
-                });
-                setHistory(prev => [`❌ ${currentPlayerName}犯規 (${newFouls}/${MAX_FOULS})`, ...prev].slice(0, 10));
-
+                if (newFouls >= MAX_FOULS) { triggerWin(turn === 'white' ? 'black' : 'white', "❌ 對手犯規滿 5 次！"); return; }
+                const currentPlayerName = piece.player === 'white' ? getCurrentWhiteName() : getCurrentBlackName();
+                setErrorMsg({ title: "踩到陷阱啦！", detail: `無法移動 (犯規 ${newFouls}/${MAX_FOULS})` });
                 if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
                 errorTimeoutRef.current = setTimeout(() => {
-                    setErrorMsg(null);
-                    setSelectedPieceId(null);
-                    setTurn(prev => prev === 'white' ? 'black' : 'white');
-                }, 2500);
+                    setErrorMsg(null); setSelectedPieceId(null); setTurn(prev => prev === 'white' ? 'black' : 'white'); setTurnTime(TURN_TIME_LIMIT);
+                }, 2000);
             };
 
             const executeMove = (piece, move) => {
                 let newPieces = pieces.filter(p => p.id !== piece.id);
-                if (move.type === 'capture') newPieces = newPieces.filter(p => p.id !== move.capturedPiece.id);
-
-                let justPromoted = false;
+                if (move.type === 'capture') { newPieces = newPieces.filter(p => p.id !== move.capturedPiece.id); playSound('capture'); } else { playSound('move'); }
                 let isUpgraded = piece.isUpgraded;
                 if (!isUpgraded) {
                     const targetRow = Math.floor(move.to / 10);
-                    if ((piece.player === 'white' && targetRow === 9) || (piece.player === 'black' && targetRow === 0)) {
-                        isUpgraded = true;
-                        justPromoted = true;
-                    }
+                    if ((piece.player === 'white' && targetRow === 9) || (piece.player === 'black' && targetRow === 0)) isUpgraded = true;
                 }
                 newPieces.push({ ...piece, position: move.to, isUpgraded: isUpgraded });
                 setPieces(newPieces);
-                
-                const currentPlayerName = piece.player === 'white' ? getCurrentWhiteName() : getCurrentBlackName();
-                const fromVal = piece.position + 1;
-                const toVal = move.to + 1;
-                const moveDesc = `${currentPlayerName} (${fromVal}→${toVal}) ${move.type === 'capture' ? '抓到了!' : ''} ${justPromoted ? '變身!' : ''}`;
-                setHistory(prev => [moveDesc, ...prev].slice(0, 10));
-
                 const nextTurn = turn === 'white' ? 'black' : 'white';
                 checkWin(newPieces, nextTurn);
                 setTurn(nextTurn);
+                setTurnTime(TURN_TIME_LIMIT); 
                 setSelectedPieceId(null);
             };
 
@@ -546,293 +526,116 @@
                 setRoundWinner(winnerColor);
                 setWinReason(reason);
                 setIsPaused(false);
-                
                 let winnerId = null;
-                if (winnerColor === 'white') {
-                    winnerId = round === 1 ? 'p1' : 'p2';
-                } else if (winnerColor === 'black') {
-                    winnerId = round === 1 ? 'p2' : 'p1';
-                }
-
-                if (winnerId) {
-                    setPlayerWins(prev => ({
-                        ...prev,
-                        [winnerId]: prev[winnerId] + 1
-                    }));
-                }
-
-                confetti({
-                    particleCount: 200,
-                    spread: 100,
-                    origin: { y: 0.6 },
-                    shapes: ['circle', 'square'], 
-                    colors: winnerColor === 'white' ? ['#ffaaaa', '#ffffff', '#ffdbac'] : ['#555555', '#000000', '#ffd700']
-                });
+                if (winnerColor === 'white') winnerId = round === 1 ? 'p1' : 'p2';
+                else if (winnerColor === 'black') winnerId = round === 1 ? 'p2' : 'p1';
+                if (winnerId) setPlayerWins(prev => ({ ...prev, [winnerId]: prev[winnerId] + 1 }));
+                confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
             };
 
-            const handleNextRound = () => {
-                setRound(2);
-                startRound();
-            };
+            const handleNextRound = () => { setRound(2); startRound(); };
+            const handleFinishMatch = () => { setMatchOver(true); setRoundWinner(null); };
+            const resetMatch = () => { setIsNameSet(false); setShowInitialRules(true); setP1Name(""); setP2Name(""); setPlayerWins({ p1: 0, p2: 0 }); setMatchOver(false); setRound(1); };
+            const getSquareColor = (idx) => { const row = Math.floor(idx / 10); const col = idx % 10; return (row + col) % 2 === 0 ? 'bg-blue-100/50' : 'bg-blue-200/50'; };
 
-            const handleFinishMatch = () => {
-                setMatchOver(true);
-                setRoundWinner(null);
-            };
-
-            const resetMatch = () => {
-                setIsNameSet(false);
-                setP1Name("");
-                setP2Name("");
-                setPlayerWins({ p1: 0, p2: 0 });
-                setMatchOver(false);
-                setRound(1);
-            };
-
-            const getSquareColor = (idx) => {
-                const row = Math.floor(idx / 10);
-                const col = idx % 10;
-                return (row + col) % 2 === 0 ? 'bg-orange-50/50' : 'bg-orange-100/50';
-            };
-
-            let matchResultText = "";
             let matchWinnerName = "";
+            let matchResultText = "";
             if (matchOver) {
-                if (playerWins.p1 > playerWins.p2) {
-                    matchWinnerName = p1Name;
-                    matchResultText = "獲得最終勝利！";
-                } else if (playerWins.p2 > playerWins.p1) {
-                    matchWinnerName = p2Name;
-                    matchResultText = "獲得最終勝利！";
-                } else {
-                    matchWinnerName = "平手";
-                    matchResultText = "雙方實力相當！";
-                }
+                if (playerWins.p1 > playerWins.p2) { matchWinnerName = p1Name; matchResultText = "獲得最終勝利！"; }
+                else if (playerWins.p2 > playerWins.p1) { matchWinnerName = p2Name; matchResultText = "獲得最終勝利！"; }
+                else { matchWinnerName = "平手"; matchResultText = "雙方實力相當！"; }
             }
 
             return (
-                <div className="min-h-screen flex flex-col md:flex-row items-center justify-center p-4 md:gap-8 relative overflow-hidden z-10">
-                    
-                    {!isNameSet && (
-                        <NameInputModal 
-                            whiteName={p1Name}
-                            setWhiteName={setP1Name}
-                            blackName={p2Name}
-                            setBlackName={setP2Name}
-                            onConfirm={handleNameConfirm}
-                        />
-                    )}
+                <div className="flex flex-col h-full w-full">
+                    {/* --- Modals --- */}
+                    {showInitialRules && <RulesModal isInitial={true} onClose={() => setShowInitialRules(false)} />}
+                    {!isNameSet && !showInitialRules && <NameInputModal whiteName={p1Name} setWhiteName={setP1Name} blackName={p2Name} setBlackName={setP2Name} onConfirm={handleNameConfirm} />}
+                    {showRules && !showInitialRules && <RulesModal onClose={() => setShowRules(false)} isInitial={false} />}
 
-                    {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-
-                    {/* Round End Modal */}
-                    {roundWinner && !matchOver && (
-                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                            <div className="bg-white rounded-[2rem] p-10 max-w-md w-full text-center shadow-2xl border-8 border-yellow-300 transform scale-100 animate-fade-in-pop relative">
-                                <h2 className="text-3xl font-bold mb-2 font-serif text-stone-800">
-                                    {roundWinner === 'draw' ? '本局平手!' : `${roundWinner === 'white' ? getCurrentWhiteName() : getCurrentBlackName()} 贏了第 ${round} 回合!`}
-                                </h2>
-                                <p className="text-lg text-orange-600 font-bold mb-6">{winReason}</p>
-                                
-                                {round === 1 ? (
-                                    <div className="space-y-4">
-                                        <p className="text-stone-500">準備好攻守交換了嗎？</p>
-                                        <button onClick={handleNextRound} className="w-full px-8 py-4 bg-gradient-to-r from-blue-400 to-indigo-500 hover:from-blue-500 hover:to-indigo-600 text-white font-bold rounded-xl shadow-xl transition-transform hover:scale-105 text-lg flex items-center justify-center gap-2">
-                                            <SwapIcon className="w-6 h-6"/>
-                                            <span>交換攻守，進入第 2 回合</span>
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <button onClick={handleFinishMatch} className="w-full px-8 py-4 bg-yellow-400 hover:bg-yellow-500 text-stone-900 font-bold rounded-xl shadow-xl transition-transform hover:scale-105 text-lg">
-                                        觀看最終結果 🏆
-                                    </button>
-                                )}
-                            </div>
+                    {/* --- Header --- */}
+                    {isNameSet && !showInitialRules && (
+                        <div className="h-16 shrink-0 bg-white/90 shadow-md flex items-center justify-between px-6 border-b-2 border-[#708899]/30 z-20 mb-8">
+                            <h1 className="text-xl font-bold text-[#5a6e7d] flex items-center gap-2"><span>數戰棋</span><span className="text-xs bg-[#e0e8e5] text-[#556b66] px-2 py-1 rounded">R{round}/2</span></h1>
+                            <div className="flex flex-col items-center"><span className="text-xs text-stone-400 font-bold tracking-widest">GLOBAL TIME</span><div className={`text-3xl font-black digital-font tracking-widest ${globalTime < 60 ? 'text-red-500 animate-pulse' : 'text-stone-700'}`}>{formatTime(globalTime)}</div></div>
+                            <button onClick={() => setShowRules(true)} className="flex items-center gap-2 text-[#708899] hover:text-[#5a6e7d] font-bold text-sm"><BookIcon className="w-5 h-5"/> 規則</button>
                         </div>
                     )}
 
-                    {/* Match Over Modal */}
-                    {matchOver && (
-                        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-                            <div className="bg-white rounded-[2rem] p-12 max-w-lg w-full text-center shadow-2xl border-8 border-yellow-400 relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-32 bg-yellow-100 -z-10 rounded-b-[50%]"></div>
-                                <div className="text-8xl mb-4">👑</div>
-                                <h2 className="text-4xl font-bold mb-2 font-serif text-stone-800">比賽結束</h2>
-                                <div className="text-2xl font-bold text-orange-600 mb-8">
-                                    {matchWinnerName} {matchResultText}
-                                </div>
-                                
-                                <div className="flex justify-center gap-8 mb-8 text-stone-600">
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-sm font-bold">{p1Name}</span>
-                                        <span className="text-4xl font-bold">{playerWins.p1} 勝</span>
-                                    </div>
-                                    <div className="text-4xl font-light text-stone-300">VS</div>
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-sm font-bold">{p2Name}</span>
-                                        <span className="text-4xl font-bold">{playerWins.p2} 勝</span>
-                                    </div>
-                                </div>
-
-                                <button onClick={resetMatch} className="px-10 py-4 bg-stone-800 hover:bg-stone-900 text-white font-bold rounded-full shadow-xl transition-transform hover:scale-105 text-lg">
-                                    回到首頁 / 新比賽
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {errorMsg && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm animate-fade-in-pop">
-                            <div className="bg-white border-4 border-red-400 rounded-3xl p-8 max-w-md text-center shadow-2xl animate-shake relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-4 bg-red-400"></div>
-                                <div className="text-6xl mb-4">🙀</div>
-                                <h2 className="text-3xl font-bold text-red-600 mb-2">{errorMsg.title}</h2>
-                                <p className="text-lg text-stone-700 font-bold mb-6">{errorMsg.detail}</p>
-                                <div className="w-full h-3 bg-stone-200 rounded-full overflow-hidden">
-                                    <div className="h-full bg-red-500 animate-[width_2.5s_linear_reverse_forwards]" style={{width: '100%'}}></div>
-                                </div>
-                                <p className="text-sm text-stone-400 mt-3 font-mono">暫停計時中...</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Left Sidebar */}
-                    <div className="flex flex-col gap-4 w-full md:w-72 order-2 md:order-1 z-10">
-                        <div className="bg-white p-6 rounded-3xl shadow-xl border-4 border-blue-100 relative">
-                            <div className="absolute -top-6 -left-4 text-6xl transform -rotate-12">🐱</div>
-                            <h1 className="text-3xl font-bold text-stone-800 mb-1 font-serif text-center">數戰棋</h1>
-                            <div className="text-stone-400 text-xs text-center mb-6 tracking-widest font-bold bg-blue-100 inline-block px-2 py-1 rounded mx-auto block w-fit">
-                                ROUND {round} / 2
-                            </div>
-                            
-                            {/* Scoreboard */}
-                            <div className="bg-blue-50 rounded-xl p-3 mb-4 border border-blue-100 flex flex-col gap-2">
-                                <h3 className="text-center font-bold text-blue-800 flex items-center justify-center gap-2">
-                                    <TrophyIcon className="w-5 h-5 text-yellow-500"/> 總勝場數
-                                </h3>
-                                <div className="flex justify-around items-center bg-white rounded-lg p-2 shadow-sm">
-                                    <div className="flex flex-col items-center w-1/2 border-r border-blue-100">
-                                        <span className="text-xs text-stone-500 truncate w-16 text-center">{p1Name}</span>
-                                        <div className="text-3xl font-bold text-stone-700 leading-none">{playerWins.p1}</div>
-                                    </div>
-                                    <div className="flex flex-col items-center w-1/2">
-                                        <span className="text-xs text-stone-500 truncate w-16 text-center">{p2Name}</span>
-                                        <div className="text-3xl font-bold text-stone-700 leading-none">{playerWins.p2}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Turn Indicator & Timer */}
-                            <div className="space-y-3">
-                                <div className={`p-3 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between px-3 ${
-                                    turn === 'white' ? 'bg-white border-blue-400 shadow-lg transform scale-105' : 'bg-stone-50 border-transparent opacity-60 grayscale'
-                                }`}>
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-2 h-2 rounded-full bg-stone-300"></div>
-                                            <span className="font-bold text-stone-800 text-sm truncate w-24">{getCurrentWhiteName()}</span>
-                                        </div>
-                                        <span className={`digital-font text-2xl font-bold ${times.white < 60 ? 'text-red-500 animate-pulse' : 'text-stone-600'}`}>
-                                            {formatTime(times.white)}
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                        {turn === 'white' && <ClockIcon className="w-5 h-5 text-blue-400 animate-spin-slow mb-1"/>}
-                                        <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded text-[10px] text-red-500 font-bold">
-                                            <AlertIcon className="w-3 h-3"/> {fouls.white}/{MAX_FOULS}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className={`p-3 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between px-3 ${
-                                    turn === 'black' ? 'bg-stone-800 border-yellow-400 shadow-lg transform scale-105' : 'bg-stone-100 border-transparent opacity-60 grayscale'
-                                }`}>
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-2 h-2 rounded-full bg-stone-700"></div>
-                                            <span className={`font-bold text-sm truncate w-24 ${turn === 'black' ? 'text-white' : 'text-stone-800'}`}>{getCurrentBlackName()}</span>
-                                        </div>
-                                        <span className={`digital-font text-2xl font-bold ${times.black < 60 ? 'text-red-500 animate-pulse' : (turn === 'black' ? 'text-white' : 'text-stone-600')}`}>
-                                            {formatTime(times.black)}
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                        {turn === 'black' && <ClockIcon className="w-5 h-5 text-yellow-400 animate-spin-slow mb-1"/>}
-                                        <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded text-[10px] text-red-500 font-bold">
-                                            <AlertIcon className="w-3 h-3"/> {fouls.black}/{MAX_FOULS}
-                                        </div>
-                                    </div>
+                    {/* --- Main Content --- */}
+                    <div className="flex-1 flex items-center justify-center p-4 gap-8 min-h-0 relative">
+                        
+                        {/* Left Player */}
+                        <div className={`w-48 flex flex-col justify-center gap-4 transition-all duration-300 ${turn === 'white' ? 'opacity-100 scale-105' : 'opacity-60 scale-95'}`}>
+                            <div className={`bg-white p-4 rounded-3xl shadow-xl border-4 ${turn === 'white' ? 'border-orange-400' : 'border-stone-200'} relative`}>
+                                {turn === 'white' && !isPaused && <div className="absolute -top-4 -right-4 w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg border-2 border-white animate-bounce z-20">{turnTime}</div>}
+                                <div className="flex flex-col items-center text-center">
+                                    <div className="w-16 h-16 rounded-full bg-white border-4 border-stone-200 flex items-center justify-center mb-2 shadow-inner"><PawIcon className="w-8 h-8 text-stone-300" /></div>
+                                    <h2 className="font-bold text-lg text-stone-800 truncate w-full">{getCurrentWhiteName()}</h2>
+                                    <div className="text-xs text-stone-400 font-bold mb-2">白貓 (先手)</div>
+                                    <div className="w-full bg-stone-100 rounded-lg p-2 mb-2"><div className="text-xs text-stone-400">總勝場</div><div className="text-2xl font-black text-stone-700">{playerWins[round === 1 ? 'p1' : 'p2']}</div></div>
+                                    <div className="flex items-center gap-1 bg-red-50 px-2 py-1 rounded text-xs text-red-500 font-bold w-full justify-center"><AlertIcon className="w-3 h-3"/> 犯規 {fouls.white}/{MAX_FOULS}</div>
                                 </div>
                             </div>
                         </div>
 
-                        <button onClick={() => setShowRules(true)} className="w-full py-4 bg-white hover:bg-blue-50 text-blue-600 border-2 border-blue-200 rounded-2xl shadow-sm font-bold transition-all hover:scale-[1.02] flex items-center justify-center gap-3 group">
-                            <BookIcon className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-                            <span>查看規則手冊</span>
-                        </button>
-                    </div>
+                        {/* Center Board Container - Strict Ratio & Grid */}
+                        <div className="h-full aspect-square relative flex items-center justify-center py-2">
+                            <div className="wood-texture p-3 rounded-xl shadow-2xl w-full h-full relative">
+                                <div className="grid grid-cols-10 grid-rows-10 gap-px bg-stone-400/50 border-4 border-stone-700 rounded-lg overflow-hidden w-full h-full">
+                                    {Array.from({ length: 100 }).map((_, idx) => {
+                                        const num = idx + 1;
+                                        const piece = pieces.find(p => p.position === idx);
+                                        const isSelected = selectedPieceId && piece && piece.id === selectedPieceId;
+                                        const isWhiteHome = idx < 10;
+                                        const isBlackHome = idx >= 90;
 
-                    {/* Main Board */}
-                    <div className="order-1 md:order-2 relative select-none z-10">
-                        <div className="wood-texture p-3 md:p-5 rounded-xl shadow-2xl relative">
-                            <div className="grid grid-cols-10 gap-[2px] bg-stone-400/50 border-4 border-stone-700 rounded-sm overflow-hidden">
-                                {Array.from({ length: 100 }).map((_, idx) => {
-                                    const num = idx + 1;
-                                    const piece = pieces.find(p => p.position === idx);
-                                    const isSelected = selectedPieceId && piece && piece.id === selectedPieceId;
-                                    const isWhiteHome = idx < 10;
-                                    const isBlackHome = idx >= 90;
+                                        return (
+                                            <div key={idx} onClick={() => handleSquareClick(idx)} className={`relative w-full h-full ${getSquareColor(idx)} ${isSelected ? 'bg-yellow-200/80 ring-inset ring-2 ring-yellow-400' : ''} cursor-pointer`}>
+                                                {/* Number */}
+                                                <span className="absolute top-[2%] left-[5%] text-[clamp(10px,1.5vw,20px)] font-black font-mono text-blue-900/80 text-shadow-white select-none z-0 leading-none">{num}</span>
+                                                {/* Zones */}
+                                                {isWhiteHome && <div className="absolute bottom-0 w-full h-[10%] bg-red-400/30"></div>}
+                                                {isBlackHome && <div className="absolute top-0 w-full h-[10%] bg-blue-400/30"></div>}
+                                                {/* Piece */}
+                                                {piece && (
+                                                    <div className={`absolute inset-0 flex items-center justify-center z-10 transition-transform duration-200 ${isSelected ? 'scale-110 -translate-y-1' : 'hover:scale-105'}`}>
+                                                        <div className="w-[90%] h-[90%] relative">
+                                                            <CatPieceSVG colorClass={piece.player === 'white' ? (piece.isUpgraded ? 'fill-red-50' : 'fill-white') : (piece.isUpgraded ? 'fill-red-900' : 'fill-stone-800')} strokeClass={piece.player === 'white'} />
+                                                            <span className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[40%] text-[clamp(12px,2vw,28px)] font-black font-serif ${piece.isUpgraded ? 'text-red-500' : (piece.player === 'white' ? 'text-stone-900' : 'text-stone-100')}`}>{piece.value}</span>
+                                                            {piece.isUpgraded && <div className="absolute bottom-1 right-2 text-sm">👑</div>}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
 
-                                    return (
-                                        <div key={idx} onClick={() => handleSquareClick(idx)} className={`w-8 h-8 md:w-12 md:h-12 flex items-center justify-center relative ${getSquareColor(idx)} ${isSelected ? 'bg-blue-200/60' : ''} cursor-pointer transition-colors hover:bg-white/40`}>
-                                            <span className="absolute top-0.5 left-0.5 text-[8px] md:text-[9px] font-mono text-stone-400/70 select-none">{num}</span>
-                                            {isWhiteHome && <div className="absolute bottom-0 w-full h-[2px] bg-red-300/40"></div>}
-                                            {isBlackHome && <div className="absolute top-0 w-full h-[2px] bg-blue-300/40"></div>}
-                                            {piece && (
-                                                <div className={`w-[90%] h-[90%] md:w-[95%] md:h-[95%] relative flex items-center justify-center transition-all duration-200 ${isSelected ? 'scale-110 -translate-y-1 z-20 drop-shadow-xl' : 'hover:scale-105 z-10 drop-shadow-md'}`}>
-                                                    <CatPieceSVG colorClass={piece.player === 'white' ? (piece.isUpgraded ? 'fill-red-50' : 'fill-white') : (piece.isUpgraded ? 'fill-red-900' : 'fill-stone-800')} strokeClass={piece.player === 'white'} />
-                                                    <span className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[40%] text-sm md:text-lg font-bold font-serif ${piece.isUpgraded ? 'text-red-500' : (piece.player === 'white' ? 'text-stone-800' : 'text-stone-200')}`}>{piece.value}</span>
-                                                    {piece.isUpgraded && <div className="absolute bottom-1 right-1 text-[8px] md:text-[10px]">👑</div>}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                        {/* Right Player */}
+                        <div className={`w-48 flex flex-col justify-center gap-4 transition-all duration-300 ${turn === 'black' ? 'opacity-100 scale-105' : 'opacity-60 scale-95'}`}>
+                            <div className={`bg-stone-800 p-4 rounded-3xl shadow-xl border-4 ${turn === 'black' ? 'border-yellow-400' : 'border-stone-600'} relative`}>
+                                {turn === 'black' && !isPaused && <div className="absolute -top-4 -left-4 w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg border-2 border-white animate-bounce z-20">{turnTime}</div>}
+                                <div className="flex flex-col items-center text-center">
+                                    <div className="w-16 h-16 rounded-full bg-stone-700 border-4 border-stone-600 flex items-center justify-center mb-2 shadow-inner"><PawIcon className="w-8 h-8 text-stone-500" /></div>
+                                    <h2 className="font-bold text-lg text-white truncate w-full">{getCurrentBlackName()}</h2>
+                                    <div className="text-xs text-stone-400 font-bold mb-2">黑貓 (後手)</div>
+                                    <div className="w-full bg-stone-700 rounded-lg p-2 mb-2"><div className="text-xs text-stone-400">總勝場</div><div className="text-2xl font-black text-white">{playerWins[round === 1 ? 'p2' : 'p1']}</div></div>
+                                    <div className="flex items-center gap-1 bg-red-900/30 px-2 py-1 rounded text-xs text-red-400 font-bold w-full justify-center"><AlertIcon className="w-3 h-3"/> 犯規 {fouls.black}/{MAX_FOULS}</div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Right Sidebar */}
-                    <div className="flex flex-col gap-4 w-full md:w-64 order-3 h-full z-10">
-                        <div className="bg-white p-4 rounded-3xl shadow-lg border border-blue-100 flex-1 min-h-[250px] flex flex-col">
-                            <h3 className="font-bold text-stone-600 mb-3 text-sm border-b pb-2 flex items-center gap-2"><span>📜</span> 戰況記錄</h3>
-                            <div className="flex-1 overflow-y-auto pr-2 space-y-2">
-                                {history.length === 0 ? (
-                                    <div className="text-center text-stone-400 text-sm py-8 flex flex-col items-center gap-2"><span className="text-2xl opacity-50">🐾</span><p>戰鬥準備中...</p></div>
-                                ) : (
-                                    history.map((log, i) => (
-                                        <div key={i} className="flex items-center gap-2 text-xs md:text-sm p-2 rounded-lg bg-stone-50 border border-stone-100 animate-fade-in-pop">
-                                            <span className="text-blue-300 font-mono">{history.length - i}.</span><span className="text-stone-600">{log}</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                        <button onClick={resetMatch} className="w-full py-3 bg-stone-700 hover:bg-stone-800 text-white rounded-2xl shadow-lg font-bold transition-all active:scale-95 flex items-center justify-center gap-2"><span>🔄 結束比賽 / 重新開始</span></button>
-                    </div>
+                    {/* Pause Button */}
+                    <button onClick={togglePause} className={`fixed bottom-6 right-6 z-[60] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 ${isPaused ? 'bg-green-500 text-white border-4 border-white' : 'bg-yellow-400 text-stone-900 border-4 border-white'}`}>{isPaused ? <PlayIcon className="w-8 h-8 ml-1"/> : <PauseIcon className="w-8 h-8"/>}</button>
 
-                    {/* Pause Button - Bottom Right Floating */}
-                    <button 
-                        onClick={togglePause}
-                        className={`fixed bottom-6 right-6 z-[60] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 ${
-                            isPaused 
-                                ? 'bg-green-500 text-white hover:bg-green-600 border-4 border-white' 
-                                : 'bg-yellow-400 text-stone-900 hover:bg-yellow-500 border-4 border-white'
-                        }`}
-                        title={isPaused ? "繼續遊戲" : "暫停遊戲"}
-                    >
-                        {isPaused ? <PlayIcon className="w-8 h-8 ml-1"/> : <PauseIcon className="w-8 h-8"/>}
-                    </button>
-
+                    {/* End Screens */}
+                    {roundWinner && !matchOver && <div className="fixed inset-0 bg-black/70 z-[70] flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-10 text-center"><h2 className="text-3xl font-bold mb-2">{roundWinner === 'draw' ? '本局平手!' : `${roundWinner === 'white' ? getCurrentWhiteName() : getCurrentBlackName()} 贏了!`}</h2><p className="mb-6">{winReason}</p>{round === 1 ? <button onClick={handleNextRound} className="w-full px-8 py-4 bg-[#708899] hover:bg-[#5a6e7d] text-white font-bold rounded-xl shadow-xl">下一回合</button> : <button onClick={handleFinishMatch} className="w-full px-8 py-4 bg-yellow-400 font-bold rounded-xl shadow-xl">觀看結果</button>}</div></div>}
+                    {matchOver && <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-12 text-center"><h2 className="text-4xl font-bold mb-2">比賽結束</h2><div className="text-2xl font-bold text-orange-600 mb-8">{matchWinnerName} {matchResultText}</div><button onClick={resetMatch} className="px-10 py-4 bg-stone-800 text-white font-bold rounded-full">回到首頁</button></div></div>}
+                    {errorMsg && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm"><div className="bg-white border-4 border-red-400 rounded-3xl p-8 text-center"><h2 className="text-3xl font-bold text-red-600 mb-2">{errorMsg.title}</h2><p>{errorMsg.detail}</p></div></div>}
                 </div>
             );
         };
